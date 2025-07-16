@@ -12,8 +12,9 @@ export const registerController = async (
   res: Response,
 ): Promise<void> => {
   // const { email, password, user_name, full_name } = req.body;
-  const result = await registerService(req, res);
-  res.status(201).json(result);
+  // const result =
+  await registerService(req, res);
+  // res.status(201).json(result);
 };
 
 export const loginController = async (

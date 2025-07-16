@@ -76,31 +76,33 @@ export const registerService = async (req: Request, res: Response) => {
   try {
     const { email, password, user_name, full_name } = req.body;
     const userRepo = AppDataSource.getRepository(User);
-    const existingUser = await userRepo.findOne({
-      where: {
-        email: email,
-      },
-    });
+
+    const existingUser = await userRepo.findOne({ where: { email } });
+
     if (existingUser) {
-      return {
-        status: 400,
+      return res.status(400).json({
         message: 'Email already exists',
-      };
+      });
     }
+
     const hashPassword = await bcrypt.hash(password, 12);
+
     const user = userRepo.create({
-      full_name: full_name,
-      email: email,
+      full_name,
+      email,
       password: hashPassword,
-      user_name: user_name,
+      user_name,
     });
+
     await userRepo.save(user);
+
     const accessToken = generateAccessToken({
       user_id: user.id.toString(),
       roles: user.roles as UserRole[],
       email: user.email,
       username: user.user_name,
     });
+
     const refreshToken = generateRefreshToken({
       user_id: user.id.toString(),
       roles: user.roles as UserRole[],
@@ -110,35 +112,119 @@ export const registerService = async (req: Request, res: Response) => {
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
-      secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
+      secure: process.env.NODE_ENV === 'production', // only secure in prod
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
       maxAge: 7 * 24 * 60 * 60 * 1000,
     });
 
     res.cookie('accessToken', accessToken, {
       httpOnly: true,
       secure: process.env.NODE_ENV === 'production',
-      sameSite: 'strict',
-      maxAge: 7 * 24 * 60 * 60 * 1000,
+      sameSite: process.env.NODE_ENV === 'production' ? 'none' : 'lax',
+      maxAge: 15 * 60 * 1000,
     });
 
-    //call device service
     const device = await saveDeviceService(user.id, req);
-    return {
-      status: 201,
+
+    return res.status(201).json({
       message: 'Register success',
-      data: {
-        user,
-        accessToken,
-        refreshToken,
-        device,
+      user: {
+        id: user.id,
+        email: user.email,
+        user_name: user.user_name,
+        full_name: user.full_name,
       },
-    };
+      device,
+    });
   } catch (error) {
     console.error(error);
     return res.status(500).json({ message: 'Internal server error' });
   }
 };
+
+// export const registerService = async (req: Request, res: Response) => {
+//   try {
+//     const { email, password, user_name, full_name } = req.body;
+//     const userRepo = AppDataSource.getRepository(User);
+//     const existingUser = await userRepo.findOne({
+//       where: {
+//         email: email,
+//       },
+//     });
+//     if (existingUser) {
+//       return {
+//         status: 400,
+//         message: 'Email already exists',
+//       };
+//     }
+//     const hashPassword = await bcrypt.hash(password, 12);
+//     const user = userRepo.create({
+//       full_name: full_name,
+//       email: email,
+//       password: hashPassword,
+//       user_name: user_name,
+//     });
+//     await userRepo.save(user);
+//     const accessToken = generateAccessToken({
+//       user_id: user.id.toString(),
+//       roles: user.roles as UserRole[],
+//       email: user.email,
+//       username: user.user_name,
+//     });
+//     const refreshToken = generateRefreshToken({
+//       user_id: user.id.toString(),
+//       roles: user.roles as UserRole[],
+//       email: user.email,
+//       username: user.user_name,
+//     });
+
+//     res.cookie('refreshToken', refreshToken, {
+//       httpOnly: true,
+//       secure: process.env.NODE_ENV === 'production' ? true : false,
+//       // secure: true,
+//       sameSite: 'none',
+//       maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+//     });
+
+//     res.cookie('accessToken', accessToken, {
+//       httpOnly: true,
+//       secure: process.env.NODE_ENV === 'production' ? true : false,
+//       // secure: true,
+//       sameSite: 'none',
+//       maxAge: 15 * 60 * 1000, // 15 minutes
+//     });
+
+//     // res.cookie('refreshToken', refreshToken, {
+//     //   httpOnly: true,
+//     //   secure: true, // only over HTTPS
+//     //   sameSite: 'none', // important if frontend is on different domain
+//     //   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+//     // });
+
+//     // res.cookie('accessToken', accessToken, {
+//     //   httpOnly: true,
+//     //   secure: true, // only over HTTPS
+//     //   sameSite: 'none', // important if frontend is on different domain,
+//     //   maxAge: 15 * 60 * 1000, // 15 minutes
+//     // });
+
+//     //call device service
+//     const device = await saveDeviceService(user.id, req);
+//     return {
+//       status: 201,
+//       message: 'Register success',
+//       data: {
+//         user,
+//         accessToken,
+//         refreshToken,
+//         device,
+//       },
+//     };
+//   } catch (error) {
+//     console.error(error);
+//     return res.status(500).json({ message: 'Internal server error' });
+//   }
+// };
 
 // POST /auth/login
 export const loginService = async (req: Request, res: Response) => {
@@ -170,6 +256,19 @@ export const loginService = async (req: Request, res: Response) => {
       email: existUser.email,
       username: existUser.user_name,
     });
+    // res.cookie('refreshToken', refreshToken, {
+    //   httpOnly: true,
+    //   secure: true, // only over HTTPS
+    //   sameSite: 'none', // important if frontend is on different domain
+    //   maxAge: 7 * 24 * 60 * 60 * 1000, // 7 days
+    // });
+
+    // res.cookie('accessToken', accessToken, {
+    //   httpOnly: true,
+    //   secure: true, // only over HTTPS
+    //   sameSite: 'none', // important if frontend is on different domain,
+    //   maxAge: 15 * 60 * 1000, // 15 minutes
+    // });
 
     res.cookie('refreshToken', refreshToken, {
       httpOnly: true,
