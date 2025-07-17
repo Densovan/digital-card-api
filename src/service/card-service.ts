@@ -282,7 +282,7 @@ export const getAllCardsAdminService = async ({
   filters: Record<string, string>;
 }) => {
   const cardRepo = AppDataSource.getRepository(IdCard);
-  const cards = await paginate(cardRepo, {
+  return await paginate(cardRepo, {
     page,
     limit,
     sortBy,
@@ -290,10 +290,10 @@ export const getAllCardsAdminService = async ({
     filters,
     relations: ['user', 'socialLinks'],
   });
-  return {
-    message: 'get cards successfully',
-    cards,
-  };
+  // return {
+  //   message: 'get cards successfully',
+  //   cards,
+  // };
 };
 
 /**
